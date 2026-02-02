@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空間図形クイズ：ピサの斜塔</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .camera-btn { transition: all 0.2s; }
+        .camera-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4 text-gray-800">
+
+    <!-- 画面1: イントロダクション -->
+    <div id="intro-screen" class="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 text-center border-b-4 border-indigo-200">
+        <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        </div>
+        <h1 class="text-2xl font-bold mb-4">立体の見方クイズ<br>写真の場所はどこ？</h1>
+        <p class="text-gray-600 mb-8 leading-relaxed text-left">
+            地図の真ん中にある塔は、<strong class="text-indigo-600">南（地図の下方向）</strong>に傾いています。<br><br>
+            これから出る「写真」を見て、地図上のどの場所（A〜H）から撮影したか当ててみましょう！
+        </p>
+        <button onclick="startQuiz()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg transition transform hover:scale-[1.02]">
+            クイズを始める
+        </button>
+    </div>
+
+    <!-- 画面2: クイズ本編 -->
+    <div id="quiz-screen" class="hidden w-full max-w-4xl">
+        <!-- ヘッダー -->
+        <div class="flex justify-between items-center mb-6 px-2">
+            <div class="flex items-center gap-2 text-indigo-800 font-bold">
+                <span class="bg-indigo-100 px-3 py-1 rounded-full text-sm">第 <span id="q-num">1</span> 問</span>
+                <span class="text-sm">/ 全5問</span>
+            </div>
+            <div class="text-gray-500 font-semibold">スコア: <span id="current-score">0</span></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            <!-- 左側：写真表示 -->
+            <div class="flex flex-col gap-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                        撮れた写真
+                    </h3>
+                    <div id="tower-image-container" class="aspect-[4/3] w-full mx-auto bg-blue-50 rounded-lg border-2 border-blue-200 overflow-hidden">
+                        <!-- SVGがここに挿入されます -->
+                    </div>
+                    <p id="image-hint" class="mt-3 text-center text-gray-600 font-medium text-sm md:text-base"></p>
+                </div>
+            </div>
+
+            <!-- 右側：地図と操作 -->
+            <div class="flex flex-col gap-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col relative">
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                        撮影場所を選ぼう
+                    </h3>
+                    
+                    <!-- 地図エリア -->
+                    <div class="relative w-full max-w-sm aspect-square bg-green-50 rounded-xl border-2 border-green-200 mx-auto overflow-hidden mb-4 select-none">
+                        <!-- 背景グリッド -->
+                        <div class="absolute inset-0 opacity-10 pointer-events-none">
+                            <div class="absolute w-full h-px bg-green-800 top-1/2"></div>
+                            <div class="absolute h-full w-px bg-green-800 left-1/2"></div>
+                            <div class="absolute w-full h-px bg-green-800 top-1/2 rotate-45 transform scale-150"></div>
+                            <div class="absolute h-full w-px bg-green-800 left-1/2 rotate-45 transform scale-150"></div>
+                            <div class="absolute top-2 right-1/2 translate-x-1/2 text-green-900 font-bold text-3xl">N</div>
+                        </div>
+
+                        <!-- 中央の塔 -->
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-yellow-100 rounded-full border-4 border-yellow-500 flex items-center justify-center shadow-lg z-0">
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] font-bold text-yellow-800 mb-1">塔</span>
+                                <div class="flex flex-col items-center">
+                                    <div class="w-1.5 h-6 bg-yellow-600 rounded-full mb-0.5"></div>
+                                    <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[8px] border-t-yellow-600"></div>
+                                </div>
+                                <span class="text-[8px] text-yellow-700 mt-0.5">南へ傾く</span>
+                            </div>
+                        </div>
+
+                        <!-- ボタン配置エリア -->
+                        <div id="map-buttons"></div>
+                    </div>
+
+                    <!-- アクションエリア -->
+                    <div id="action-area" class="min-h-[120px]">
+                        <div id="submit-section" class="flex flex-col gap-3">
+                            <p class="text-center text-sm text-gray-500">地図上の A 〜 H をタップして選択</p>
+                            <button id="submit-btn" onclick="submitAnswer()" disabled class="w-full py-3 rounded-xl font-bold text-lg shadow-md transition-all bg-gray-200 text-gray-400 cursor-not-allowed">
+                                回答する
+                            </button>
+                        </div>
+
+                        <div id="result-section" class="hidden p-4 rounded-xl border-2 fade-in">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div id="result-icon"></div>
+                                <span id="result-title" class="text-xl font-bold"></span>
+                            </div>
+                            <p class="text-gray-700 text-sm mb-4 leading-relaxed">
+                                <span class="font-bold">解説：</span><span id="explanation-text"></span>
+                            </p>
+                            <button onclick="nextQuestion()" id="next-btn" class="w-full py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-bold text-sm">
+                                次の問題へ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 画面3: 結果発表 -->
+    <div id="final-screen" class="hidden max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">結果発表！</h2>
+        <div class="py-8">
+            <div class="text-6xl font-black text-indigo-600 mb-2">
+                <span id="final-score">0</span> <span class="text-2xl text-gray-400 font-normal">/ 5</span>
+            </div>
+            <p class="text-gray-500 font-bold">正解数</p>
+        </div>
+        
+        <div class="bg-gray-50 p-6 rounded-xl mb-8 text-left text-sm text-gray-600">
+            <h3 class="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                💡 ポイント
+            </h3>
+            真横（西や東）から見ると傾きは最大になりますが、斜めから見ると少し傾きが小さく見えます。また、手前や奥にあるときの見え方（大きさ）もヒントになりますよ！
+        </div>
+
+        <button onclick="restartQuiz()" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md flex items-center justify-center gap-2 transition">
+            もう一度挑戦する
+        </button>
+    </div>
+
+    <script>
+        // --- データ定義 ---
+        const questions = [
+            {
+                id: 1,
+                imageType: 'lean-right',
+                correctPosition: 'G', // 西
+                explanation: '地図の「西（G）」から見ると、南への傾きは「真右」への傾きとして、一番大きく傾いて見えます。',
+                hintText: '塔が <span class="text-blue-600 font-bold text-lg">右</span> に大きく傾いています'
+            },
+            {
+                id: 2,
+                imageType: 'straight-front',
+                correctPosition: 'E', // 南
+                explanation: '地図の「南（E）」から見ると、塔は自分の方（手前）へ倒れてくるため、左右には傾いて見えません。',
+                hintText: '塔が <span class="text-blue-600 font-bold text-lg">まっすぐ</span> 見えます<span class="text-sm text-gray-400">（手前）</span>'
+            },
+            {
+                id: 3,
+                imageType: 'lean-left-back',
+                correctPosition: 'B', // 北東
+                explanation: '地図の「北東（B）」から見ると、塔は「左斜め奥」へ傾いて見えます。真横（東）から見るよりも、傾きが少し緩やかに見えます。',
+                hintText: '塔が <span class="text-blue-600 font-bold text-lg">左</span> に少し傾いています'
+            },
+            {
+                id: 4,
+                imageType: 'straight-back',
+                correctPosition: 'A', // 北
+                explanation: '地図の「北（A）」から見ると、塔はまっすぐ奥へ倒れているため、左右には傾いて見えません。',
+                hintText: '塔が <span class="text-blue-600 font-bold text-lg">まっすぐ</span> 見えます<span class="text-sm text-gray-400">（奥）</span>'
+            },
+            {
+                id: 5,
+                imageType: 'lean-right-front',
+                correctPosition: 'F', // 南西
+                explanation: '地図の「南西（F）」から見ると、塔は「右斜め手前」へ傾いて見えます。真横（西）から見るのと違い、少し手前に迫ってくるように見えます。',
+                hintText: '塔が <span class="text-blue-600 font-bold text-lg">右</span> に少し傾いています'
+            },
+        ];
+
+        const positions = [
+            { id: 'A', label: 'A', style: 'top: 2%; left: 50%; transform: translateX(-50%);' }, // 北
+            { id: 'B', label: 'B', style: 'top: 15%; right: 15%;' }, // 北東
+            { id: 'C', label: 'C', style: 'top: 50%; right: 2%; transform: translateY(-50%);' }, // 東
+            { id: 'D', label: 'D', style: 'bottom: 15%; right: 15%;' }, // 南東
+            { id: 'E', label: 'E', style: 'bottom: 2%; left: 50%; transform: translateX(-50%);' }, // 南
+            { id: 'F', label: 'F', style: 'bottom: 15%; left: 15%;' }, // 南西
+            { id: 'G', label: 'G', style: 'top: 50%; left: 2%; transform: translateY(-50%);' }, // 西
+            { id: 'H', label: 'H', style: 'top: 15%; left: 15%;' }, // 北西
+        ];
+
+        // --- 状態管理 ---
+        let currentQIndex = 0;
+        let score = 0;
+        let selectedPos = null;
+        let isAnswered = false;
+
+        // --- SVG生成関数 ---
+        function getTowerSvg(type) {
+            const ground = '<path d="M10 180 L190 180" stroke="#4B5563" stroke-width="4" stroke-linecap="round"/>';
+            let content = '';
+
+            if (type === 'lean-right') {
+                content = `
+                <g transform="rotate(15, 100, 180)">
+                   <rect x="70" y="40" width="60" height="140" rx="4" fill="#FDE047" stroke="#B45309" stroke-width="4" />
+                   <path d="M70 60 H130 M70 90 H130 M70 120 H130 M70 150 H130" stroke="#B45309" stroke-width="2" stroke-dasharray="4 2" />
+                   <rect x="65" y="30" width="70" height="10" fill="#B45309" rx="2" />
+                   <path d="M75 40 V180 M125 40 V180" stroke="#B45309" stroke-width="1" opacity="0.5"/>
+                </g>`;
+            } else if (type === 'lean-left') {
+                content = `
+                <g transform="rotate(-15, 100, 180)">
+                   <rect x="70" y="40" width="60" height="140" rx="4" fill="#FDE047" stroke="#B45309" stroke-width="4" />
+                   <path d="M70 60 H130 M70 90 H130 M70 120 H130 M70 150 H130" stroke="#B45309" stroke-width="2" stroke-dasharray="4 2" />
+                   <rect x="65" y="30" width="70" height="10" fill="#B45309" rx="2" />
+                   <path d="M75 40 V180 M125 40 V180" stroke="#B45309" stroke-width="1" opacity="0.5"/>
+                </g>`;
+            } else if (type === 'straight-front') {
+                content = `
+                <g>
+                   <rect x="65" y="35" width="70" height="145" rx="4" fill="#FDE047" stroke="#B45309" stroke-width="4" />
+                   <path d="M65 55 H135 M65 85 H135 M65 115 H135 M65 145 H135" stroke="#B45309" stroke-width="2" stroke-dasharray="4 2" />
+                   <rect x="60" y="25" width="80" height="10" fill="#B45309" rx="2" />
+                   <path d="M80 35 L70 180" stroke="#B45309" stroke-width="1" opacity="0.3"/>
+                   <path d="M120 35 L130 180" stroke="#B45309" stroke-width="1" opacity="0.3"/>
+                </g>`;
+            } else if (type === 'straight-back') {
+                content = `
+                <g>
+                   <rect x="70" y="40" width="60" height="140" rx="4" fill="#FDE047" stroke="#B45309" stroke-width="4" />
+                   <path d="M70 60 H130 M70 90 H130 M70 120 H130 M70 150 H130" stroke="#B45309" stroke-width="2" stroke-dasharray="4 2" />
+                   <rect x="65" y="30" width="70" height="10" fill="#B45309" rx="2" />
+                   <path d="M75 40 V180 M125 40 V180" stroke="#B45309" stroke-width="1" opacity="0.5"/>
+                   <path d="M80 40 L80 180" stroke="#B45309" stroke-width="1" opacity="0.3"/>
+                   <path d="M120 40 L120 180" stroke="#B45309" stroke-width="1" opacity="0.3"/>
+                </g>`;
+            } else if (type === 'lean-left-back') {
+                content = `
+                <g transform="translate(5, 5) rotate(-8, 100, 180)">
+                   <rect x="72" y="45" width="56" height="135" rx="4" fill="#FDE047" stroke="#B45309" stroke-width="4" />
+                   <path d="M72 65 H128 M72 95 H128 M72 125 H128 M72 155 H128" stroke="#B45309" stroke-width="2" stroke-dasharray="4 2" />
+                   <rect x="68" y="35" width="64" height="10" fill="#B45309" rx="2" />
+                </g>`;
+            } else if (type === 'lean-right-front') {
+                content = `
+                <g transform="translate(-5, -5) rotate(8, 100, 180)">
+                   <rect x="68" y="35" width="64" height="145" rx="4" fill="#FDE047" stroke="#B45309" stroke-width="4" />
+                   <path d="M68 55 H132 M68 85 H132 M68 115 H132 M68 145 H132" stroke="#B45309" stroke-width="2" stroke-dasharray="4 2" />
+                   <rect x="64" y="25" width="72" height="10" fill="#B45309" rx="2" />
+                </g>`;
+            }
+
+            return `<svg viewBox="0 0 200 200" class="w-full h-full">
+                <text x="10" y="25" font-size="14" fill="#1E40AF" font-weight="bold">写真</text>
+                ${ground}
+                ${content}
+            </svg>`;
+        }
+
+        // --- 操作ロジック ---
+
+        function startQuiz() {
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            score = 0;
+            currentQIndex = 0;
+            renderQuestion();
+        }
+
+        function restartQuiz() {
+            document.getElementById('final-screen').classList.add('hidden');
+            startQuiz();
+        }
+
+        function renderQuestion() {
+            const q = questions[currentQIndex];
+            selectedPos = null;
+            isAnswered = false;
+
+            // UI更新
+            document.getElementById('q-num').textContent = currentQIndex + 1;
+            document.getElementById('current-score').textContent = score;
+            document.getElementById('tower-image-container').innerHTML = getTowerSvg(q.imageType);
+            document.getElementById('image-hint').innerHTML = q.hintText;
+
+            // ボタン生成
+            const mapContainer = document.getElementById('map-buttons');
+            mapContainer.innerHTML = '';
+            
+            positions.forEach(pos => {
+                const btn = document.createElement('button');
+                btn.className = `camera-btn absolute w-10 h-10 md:w-12 md:h-12 rounded-full border-2 font-bold shadow-md flex items-center justify-center z-10 text-sm md:text-base bg-white border-blue-300 text-blue-600 hover:bg-blue-50`;
+                btn.style.cssText = pos.style;
+                btn.textContent = pos.label;
+                btn.onclick = () => selectPosition(pos.id, btn);
+                btn.id = `btn-${pos.id}`;
+                mapContainer.appendChild(btn);
+            });
+
+            // アクションエリアのリセット
+            document.getElementById('submit-section').classList.remove('hidden');
+            document.getElementById('result-section').classList.add('hidden');
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.className = "w-full py-3 rounded-xl font-bold text-lg shadow-md transition-all bg-gray-200 text-gray-400 cursor-not-allowed";
+        }
+
+        function selectPosition(posId, btnElement) {
+            if (isAnswered) return;
+
+            // 選択状態の更新
+            selectedPos = posId;
+
+            // 全ボタンのスタイルリセット
+            document.querySelectorAll('.camera-btn').forEach(b => {
+                b.className = "camera-btn absolute w-10 h-10 md:w-12 md:h-12 rounded-full border-2 font-bold shadow-md flex items-center justify-center z-10 text-sm md:text-base bg-white border-blue-300 text-blue-600 hover:bg-blue-50";
+            });
+
+            // 選択されたボタンのスタイル
+            btnElement.className = "camera-btn absolute w-10 h-10 md:w-12 md:h-12 rounded-full border-2 font-bold shadow-md flex items-center justify-center z-10 text-sm md:text-base bg-blue-600 border-blue-700 text-white ring-2 ring-blue-300";
+
+            // 回答ボタン有効化
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = false;
+            submitBtn.className = "w-full py-3 rounded-xl font-bold text-lg shadow-md transition-all bg-indigo-600 hover:bg-indigo-700 text-white transform hover:scale-[1.02]";
+        }
+
+        function submitAnswer() {
+            if (!selectedPos || isAnswered) return;
+            isAnswered = true;
+
+            const q = questions[currentQIndex];
+            const isCorrect = selectedPos === q.correctPosition;
+            
+            if (isCorrect) score++;
+
+            // ★ スコア表示を即時更新
+            document.getElementById('current-score').textContent = score;
+
+            // 地図上のボタンの色分け（正解・不正解の表示）
+            document.querySelectorAll('.camera-btn').forEach(btn => {
+                const posId = btn.id.replace('btn-', '');
+                btn.disabled = true;
+                
+                if (posId === q.correctPosition) {
+                    // 正解の場所（緑）
+                    btn.className = `absolute w-10 h-10 md:w-12 md:h-12 rounded-full border-2 font-bold shadow-md flex items-center justify-center z-20 text-sm md:text-base bg-green-500 border-green-600 text-white ring-4 ring-green-200`;
+                } else if (posId === selectedPos && !isCorrect) {
+                    // 間違って選んだ場所（赤）
+                    btn.className = `absolute w-10 h-10 md:w-12 md:h-12 rounded-full border-2 font-bold shadow-md flex items-center justify-center z-10 text-sm md:text-base bg-red-500 border-red-600 text-white opacity-80`;
+                } else {
+                    // その他（グレーアウト）
+                    btn.classList.add('bg-gray-100', 'border-gray-200', 'text-gray-400', 'opacity-50');
+                    btn.classList.remove('bg-white', 'text-blue-600');
+                }
+            });
+
+            // 結果エリアの表示
+            document.getElementById('submit-section').classList.add('hidden');
+            const resultSection = document.getElementById('result-section');
+            resultSection.classList.remove('hidden');
+            
+            // 結果のデザイン設定（★ここを修正：hiddenを含めないように！）
+            if (isCorrect) {
+                resultSection.className = "p-4 rounded-xl border-2 fade-in bg-green-50 border-green-200";
+                document.getElementById('result-icon').innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                document.getElementById('result-title').textContent = "正解！";
+                document.getElementById('result-title').className = "text-xl font-bold text-green-700";
+            } else {
+                resultSection.className = "p-4 rounded-xl border-2 fade-in bg-red-50 border-red-200";
+                document.getElementById('result-icon').innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+                document.getElementById('result-title').textContent = "ざんねん...";
+                document.getElementById('result-title').className = "text-xl font-bold text-red-700";
+            }
+
+            document.getElementById('explanation-text').textContent = q.explanation;
+            document.getElementById('next-btn').textContent = (currentQIndex < questions.length - 1) ? '次の問題へ' : '結果を見る';
+        }
+
+        function nextQuestion() {
+            if (currentQIndex < questions.length - 1) {
+                currentQIndex++;
+                renderQuestion();
+            } else {
+                showFinalResult();
+            }
+        }
+
+        function showFinalResult() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('final-screen').classList.remove('hidden');
+            document.getElementById('final-score').textContent = score;
+        }
+
+    </script>
+</body>
+</html>
